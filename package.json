@@ -1,6 +1,6 @@
 {
-  "name": "url-state",
-  "version": "1.0.0",
+  "name": "@jimjam.dev/url-state",
+  "version": "1.0.1",
   "description": "A url state manager for nextjs",
   "license": "ISC",
   "author": "Ian Jamieson",

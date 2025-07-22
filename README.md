@@ -342,10 +342,23 @@ async function getUsers(query: UserQuery) {
 
 ### REST API Integration
 ```tsx
+import qs from 'qs';
+
 async function getUsers(query: UserQuery) {
+  // Much simpler with qs library
+  const queryString = qs.stringify(query, { 
+    skipNulls: true,
+    arrayFormat: 'repeat' // ?tags=tag1&tags=tag2 format
+  });
+  
+  const response = await fetch(`/api/users?${queryString}`);
+  return response.json();
+}
+
+// Alternative without qs (if you prefer no dependencies):
+async function getUsersVanilla(query: UserQuery) {
   const params = new URLSearchParams();
   
-  // Convert query object to URL params
   Object.entries(query).forEach(([key, value]) => {
     if (value !== undefined && value !== null) {
       if (Array.isArray(value)) {
