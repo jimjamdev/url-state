@@ -1,11 +1,37 @@
-# URL State Management Examples
+# URL State Management for Next.js
+
+A powerful, type-safe URL state manager for Next.js applications that synchronizes component state with URL search parameters.
+
+## Installation
+
+```bash
+# npm
+npm install @jimjam.dev/url-state
+
+# yarn
+yarn add @jimjam.dev/url-state
+
+# pnpm
+pnpm add @jimjam.dev/url-state
+```
+
+## Features
+
+- 🔄 **Automatic URL synchronization** - Component state stays in sync with URL
+- 🎯 **Type-safe** - Full TypeScript support with generics
+- ⚡ **Performance optimized** - Built-in caching and batching
+- 🔧 **Multiple instances** - Use unique keys for multiple tables/components
+- 🎛️ **Server-side compatible** - Works with Next.js App Router SSR
+- 🛠️ **Flexible** - Simple hooks or advanced QueryBuilder patterns
+
+## Examples
 
 ## Client-Side Examples
 
 ### Basic URL State Hook
 ```tsx
 'use client';
-import { useUrlState } from '@/lib/hooks/url-state';
+import { useUrlState } from '@jimjam.dev/url-state';
 
 function UserTableControls() {
   const { state, setItem, setItems, deleteItem, deleteAllItems } = useUrlState('users_');
@@ -62,7 +88,7 @@ function UserTableControls() {
 ### Multiple Tables on Same Page
 ```tsx
 'use client';
-import { useUrlState } from '@/lib/hooks/url-state';
+import { useUrlState } from '@jimjam.dev/url-state';
 
 function DualTablePage() {
   // Users table state (u_ prefix)
@@ -112,7 +138,7 @@ function DualTablePage() {
 ### Simple Server Component Usage
 ```tsx
 import { ReadonlyURLSearchParams } from 'next/navigation';
-import { getQueryFromUrl } from '@/lib/hooks/url-state';
+import { getQueryFromUrl } from '@jimjam.dev/url-state';
 
 // Define your query type
 interface UserQuery {
@@ -164,7 +190,7 @@ async function UsersTable({ searchParams }: UsersPageProps) {
 ### Advanced Server Component with Custom QueryBuilder
 ```tsx
 import { ReadonlyURLSearchParams } from 'next/navigation';
-import { deserializeUrl, QueryBuilder } from '@/lib/hooks/url-state';
+import { deserializeUrl, QueryBuilder } from '@jimjam.dev/url-state';
 
 interface AdvancedUserQuery {
   page: number;
@@ -238,7 +264,7 @@ async function AdvancedUsersTable({ searchParams }: { searchParams: ReadonlyURLS
 ### App-Wide QueryBuilder for Consistent Behavior
 ```tsx
 // lib/query-builders.ts
-import { QueryBuilder } from '@/lib/hooks/url-state';
+import { QueryBuilder } from '@jimjam.dev/url-state';
 
 // Create reusable QueryBuilder instances for your app
 export const UsersQueryBuilder = new QueryBuilder()
@@ -269,7 +295,7 @@ export const PaymentsQueryBuilder = new QueryBuilder()
 ### Dynamic QueryBuilder Based on User Preferences
 ```tsx
 // lib/dynamic-query-builder.ts
-import { QueryBuilder } from '@/lib/hooks/url-state';
+import { QueryBuilder } from '@jimjam.dev/url-state';
 
 export function createUserPreferenceQueryBuilder(userPrefs: UserPreferences) {
   return new QueryBuilder()
