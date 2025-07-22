@@ -1,0 +1,16 @@
+{
+  "name": "url-state",
+  "version": "1.0.0",
+  "description": "A url state manager for nextjs",
+  "license": "ISC",
+  "author": "Ian Jamieson",
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "next": "^15.4.3",
+    "react": "^19.1.0"
+  }
+}
