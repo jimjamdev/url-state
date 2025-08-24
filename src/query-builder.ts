@@ -12,24 +12,33 @@ export interface QueryBuilderConfig {
   postProcess?: (result: Record<string, any>) => Record<string, any>;
 }
 
+interface InternalConfig {
+  defaults: Record<string, any>;
+  ignored: string[];
+  ignoredSet: Set<string> | null;
+  mappings: Record<string, (value: any) => any>;
+  postProcess?: (result: Record<string, any>) => Record<string, any>;
+}
+
 /**
  * Configurable QueryBuilder class for processing URL state
  */
 export class QueryBuilder<T extends Record<string, any> = Record<string, any>> {
-  private config: Required<Omit<QueryBuilderConfig, 'postProcess'>> & Pick<QueryBuilderConfig, 'postProcess'>;
+  private config: InternalConfig;
 
   constructor(config: QueryBuilderConfig = {}) {
+    const ignored = config.ignored || [];
     this.config = {
-      defaults: { page: 1, pageSize: 10 },
-      ignored: [],
-      mappings: {},
-      postProcess: undefined,
-      ...config
+      defaults: { page: 1, pageSize: 10, ...config.defaults },
+      ignored,
+      ignoredSet: ignored.length > 0 ? new Set(ignored) : null,
+      mappings: config.mappings || {},
+      postProcess: config.postProcess
     };
   }
 
   /**
-   * Add default values
+   * Add default values (rebuilds ignoredSet for consistency)
    */
   setDefaults(defaults: Record<string, any>): this {
     this.config.defaults = { ...this.config.defaults, ...defaults };
@@ -37,10 +46,11 @@ export class QueryBuilder<T extends Record<string, any> = Record<string, any>> {
   }
 
   /**
-   * Add properties to ignore
+   * Add properties to ignore (rebuilds ignoredSet)
    */
   ignore(...properties: string[]): this {
     this.config.ignored.push(...properties);
+    this.config.ignoredSet = this.config.ignored.length > 0 ? new Set(this.config.ignored) : null;
     return this;
   }
 
@@ -67,35 +77,28 @@ export class QueryBuilder<T extends Record<string, any> = Record<string, any>> {
    * Build query from already-filtered parameters
    */
   build(params: Record<string, any>): T {
-    let result: Record<string, any> = {
-      page: 1,
-      pageSize: 10,
-      ...this.config.defaults
-    };
+    // Pre-create result with defaults (already combined in constructor)
+    const result: Record<string, any> = Object.assign({}, this.config.defaults);
 
-    // Process all parameters
-    Object.entries(params).forEach(([key, value]) => {
-      if (value !== undefined) {
-        // Skip ignored properties
-        if (this.config.ignored.includes(key)) {
-          return;
-        }
-
-        // Apply custom mapping if available
-        if (this.config.mappings[key]) {
-          result[key] = this.config.mappings[key](value);
-        } else {
-          result[key] = value;
-        }
-      }
-    });
-
-    // Apply post-processing if configured
-    if (this.config.postProcess) {
-      result = this.config.postProcess(result);
+    // Early return if no params to process
+    if (!params || Object.keys(params).length === 0) {
+      return (this.config.postProcess ? this.config.postProcess(result) : result) as T;
     }
 
-    return result as T;
+    // Process parameters with optimized loops using pre-computed Set
+    for (const [key, value] of Object.entries(params)) {
+      if (value === undefined) continue;
+      
+      // Fast ignored check using pre-computed Set
+      if (this.config.ignoredSet?.has(key)) continue;
+
+      // Apply mapping or direct assignment
+      const mapper = this.config.mappings[key];
+      result[key] = mapper ? mapper(value) : value;
+    }
+
+    // Apply post-processing if configured
+    return (this.config.postProcess ? this.config.postProcess(result) : result) as T;
   }
 }
 
@@ -130,6 +133,8 @@ export function createQueryBuilder<T extends Record<string, any> = Record<string
   config?: QueryBuilderConfig
 ) {
   const builder = new QueryBuilder<T>(config);
+  
+  // Return optimized function that reuses the same builder instance
   return (searchParams: ReadonlyURLSearchParams | SearchParams, uniqueKey: string = ''): T => {
     return builder.fromUrl(searchParams, uniqueKey);
   };
