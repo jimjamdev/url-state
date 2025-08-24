@@ -24,6 +24,45 @@ pnpm add @jimjam.dev/url-state
 - 🎛️ **Server-side compatible** - Works with Next.js App Router SSR
 - 🛠️ **Flexible** - Simple hooks or advanced QueryBuilder patterns
 
+## Quick Start
+
+### Create your qb.ts file:
+```tsx
+// lib/utils/qb.ts
+import { createQueryBuilder } from '@jimjam.dev/url-state';
+
+export const qb = createQueryBuilder({
+  defaults: { 
+    page: 1, 
+    pageSize: 10 
+  },
+  ignored: ['debug', 'csrf'],
+  mappings: {
+    orderBy: (value) => value,
+    orderDir: (value) => value || '+'
+  },
+  postProcess: (result) => {
+    // Add any custom logic like sorting
+    if (result.orderBy) {
+      result.sort = `${result.orderDir}${result.orderBy}`;
+    }
+    return result;
+  }
+});
+```
+
+### Use it in your components:
+```tsx
+import { qb } from '@/lib/utils/qb';
+
+export default async function UsersPage({ searchParams }) {
+  const query = qb(searchParams, 'users_');
+  const users = await getUsers(query);
+  
+  return <UsersTable data={users} />;
+}
+```
+
 ## Examples
 
 ## Client-Side Examples
@@ -190,7 +229,7 @@ async function UsersTable({ searchParams }: UsersPageProps) {
 ### Advanced Server Component with Custom QueryBuilder
 ```tsx
 import { ReadonlyURLSearchParams } from 'next/navigation';
-import { deserializeUrl, QueryBuilder } from '@jimjam.dev/url-state';
+import { QueryBuilder } from '@jimjam.dev/url-state';
 
 interface AdvancedUserQuery {
   page: number;
@@ -203,10 +242,7 @@ interface AdvancedUserQuery {
 }
 
 async function AdvancedUsersTable({ searchParams }: { searchParams: ReadonlyURLSearchParams }) {
-  // Step 1: Extract raw URL parameters for this table
-  const rawParams = deserializeUrl(searchParams, 'users_');
-  
-  // Step 2: Create custom QueryBuilder with app-specific logic
+  // Create custom QueryBuilder with app-specific logic
   const query = new QueryBuilder<AdvancedUserQuery>()
     .setDefaults({ 
       page: 1, 
@@ -231,7 +267,7 @@ async function AdvancedUsersTable({ searchParams }: { searchParams: ReadonlyURLS
       // Convert string to boolean
       return value === 'true' || value === true;
     })
-    .build(rawParams);
+    .fromUrl(searchParams, 'users_');
     
   // Step 3: Use processed query with backend
   const users = await getAdvancedUsers(query);
@@ -264,41 +300,44 @@ async function AdvancedUsersTable({ searchParams }: { searchParams: ReadonlyURLS
 ### App-Wide QueryBuilder for Consistent Behavior
 ```tsx
 // lib/query-builders.ts
-import { QueryBuilder } from '@jimjam.dev/url-state';
+import { createQueryBuilder } from '@jimjam.dev/url-state';
 
-// Create reusable QueryBuilder instances for your app
-export const UsersQueryBuilder = new QueryBuilder()
+// Create reusable query functions for your app
+export const usersQuery = createQueryBuilder()
   .setDefaults({ page: 1, pageSize: 10, status: 'active' })
   .ignore('debug', 'session_id', 'csrf_token')
   .addMapping('roles', (value) => Array.isArray(value) ? value : [value])
   .addMapping('createdAfter', (value) => new Date(value))
-  .addMapping('isActive', (value) => value === 'true' || value === true);
+  .addMapping('isActive', (value) => value === 'true' || value === true)
+  .toFunction();
 
-export const IssuesQueryBuilder = new QueryBuilder()
+export const issuesQuery = createQueryBuilder()
   .setDefaults({ page: 1, pageSize: 20, status: 'open', priority: 'medium' })
   .ignore('debug')
   .addMapping('tags', (value) => typeof value === 'string' ? value.split(',') : value)
   .addMapping('assignees', (value) => Array.isArray(value) ? value : [value])
-  .addMapping('dueDate', (value) => value ? new Date(value) : undefined);
+  .addMapping('dueDate', (value) => value ? new Date(value) : undefined)
+  .toFunction();
 
-export const PaymentsQueryBuilder = new QueryBuilder()
+export const paymentsQuery = createQueryBuilder()
   .setDefaults({ page: 1, pageSize: 50, status: 'pending' })
   .addMapping('amount', (value) => parseFloat(value))
   .addMapping('dueAfter', (value) => new Date(value))
-  .addMapping('includeOverdue', (value) => value === 'true');
+  .addMapping('includeOverdue', (value) => value === 'true')
+  .toFunction();
 
 // Usage in components:
-// const userQuery = UsersQueryBuilder.build(deserializeUrl(searchParams, 'u_'));
-// const issueQuery = IssuesQueryBuilder.build(deserializeUrl(searchParams, 'i_'));
+// const users = await getUsers(usersQuery(searchParams, 'u_'));
+// const issues = await getIssues(issuesQuery(searchParams, 'i_'));
 ```
 
 ### Dynamic QueryBuilder Based on User Preferences
 ```tsx
 // lib/dynamic-query-builder.ts
-import { QueryBuilder } from '@jimjam.dev/url-state';
+import { createQueryBuilder } from '@jimjam.dev/url-state';
 
-export function createUserPreferenceQueryBuilder(userPrefs: UserPreferences) {
-  return new QueryBuilder()
+export function createUserPreferenceQuery(userPrefs: UserPreferences) {
+  return createQueryBuilder()
     .setDefaults({ 
       page: 1, 
       pageSize: userPrefs.defaultPageSize || 10,
@@ -316,12 +355,13 @@ export function createUserPreferenceQueryBuilder(userPrefs: UserPreferences) {
         };
       }
       return value;
-    });
+    })
+    .toFunction();
 }
 
 // Usage:
-// const queryBuilder = createUserPreferenceQueryBuilder(currentUser.preferences);
-// const query = queryBuilder.build(deserializeUrl(searchParams, 'data_'));
+// const userQuery = createUserPreferenceQuery(currentUser.preferences);
+// const query = userQuery(searchParams, 'data_');
 ```
 
 ## Backend Integration Examples

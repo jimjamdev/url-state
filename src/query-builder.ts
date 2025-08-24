@@ -1,4 +1,5 @@
-// No imports needed - QueryBuilder works with plain objects
+import { deserializeUrl, type SearchParams } from './serializer';
+import { ReadonlyURLSearchParams } from 'next/navigation';
 
 export interface QueryBuilderConfig {
   /** Default values for parameters */
@@ -7,19 +8,22 @@ export interface QueryBuilderConfig {
   ignored?: string[];
   /** Custom property mappings */
   mappings?: Record<string, (value: any) => any>;
+  /** Post-processing function to transform the final result */
+  postProcess?: (result: Record<string, any>) => Record<string, any>;
 }
 
 /**
  * Configurable QueryBuilder class for processing URL state
  */
 export class QueryBuilder<T extends Record<string, any> = Record<string, any>> {
-  private config: Required<QueryBuilderConfig>;
+  private config: Required<Omit<QueryBuilderConfig, 'postProcess'>> & Pick<QueryBuilderConfig, 'postProcess'>;
 
   constructor(config: QueryBuilderConfig = {}) {
     this.config = {
       defaults: { page: 1, pageSize: 10 },
       ignored: [],
       mappings: {},
+      postProcess: undefined,
       ...config
     };
   }
@@ -49,10 +53,21 @@ export class QueryBuilder<T extends Record<string, any> = Record<string, any>> {
   }
 
   /**
+   * Build query from searchParams with optional unique key filtering
+   */
+  fromUrl(
+    searchParams: ReadonlyURLSearchParams | SearchParams,
+    uniqueKey: string = ''
+  ): T {
+    const filteredParams = deserializeUrl(searchParams, uniqueKey);
+    return this.build(filteredParams);
+  }
+
+  /**
    * Build query from already-filtered parameters
    */
   build(params: Record<string, any>): T {
-    const result: Record<string, any> = {
+    let result: Record<string, any> = {
       page: 1,
       pageSize: 10,
       ...this.config.defaults
@@ -75,17 +90,59 @@ export class QueryBuilder<T extends Record<string, any> = Record<string, any>> {
       }
     });
 
+    // Apply post-processing if configured
+    if (this.config.postProcess) {
+      result = this.config.postProcess(result);
+    }
+
     return result as T;
   }
 }
 
 /**
- * Legacy function for backward compatibility
- * Note: This now requires pre-filtered params (use getQueryFromUrl for full URL processing)
+ * Create a configured query builder function
+ * 
+ * @example
+ * ```ts
+ * // In your lib/utils/qb.ts file:
+ * import { createQueryBuilder } from '@jimjam.dev/url-state';
+ * 
+ * export const qb = createQueryBuilder({
+ *   defaults: { page: 1, pageSize: 10 },
+ *   ignored: ['debug'],
+ *   mappings: {
+ *     orderBy: (value) => value,
+ *     orderDir: (value) => value || '+'
+ *   },
+ *   postProcess: (result) => {
+ *     if (result.orderBy) {
+ *       result.sort = `${result.orderDir}${result.orderBy}`;
+ *     }
+ *     return result;
+ *   }
+ * });
+ * 
+ * // Use it:
+ * const query = qb(searchParams, 'users_');
+ * ```
+ */
+export function createQueryBuilder<T extends Record<string, any> = Record<string, any>>(
+  config?: QueryBuilderConfig
+) {
+  const builder = new QueryBuilder<T>(config);
+  return (searchParams: ReadonlyURLSearchParams | SearchParams, uniqueKey: string = ''): T => {
+    return builder.fromUrl(searchParams, uniqueKey);
+  };
+}
+
+/**
+ * Direct queryBuilder function (unconfigured)
+ * Takes searchParams and uniqueKey, returns filtered and processed query
  */
 export function queryBuilder<T extends Record<string, any> = Record<string, any>>(
-  params: Record<string, any>
+  searchParams: ReadonlyURLSearchParams | SearchParams,
+  uniqueKey: string = ''
 ): T {
   const builder = new QueryBuilder<T>();
-  return builder.build(params);
+  return builder.fromUrl(searchParams, uniqueKey);
 }
