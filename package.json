@@ -45,10 +45,10 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/yourusername/url-state.git"
+    "url": "git+https://github.com/jimjamdev/url-state.git"
   },
   "bugs": {
-    "url": "https://github.com/yourusername/url-state/issues"
+    "url": "https://github.com/jimjamdev/url-state/issues"
   },
-  "homepage": "https://github.com/yourusername/url-state#readme"
+  "homepage": "https://github.com/jimjamdev/url-state#readme"
 }
